@@ -1,0 +1,12 @@
+<h1>{{ film.name }}</h1>
+
+{% regroup film.part_set.all by profession as persons_by_profession %}
+
+{% for profession_group in persons_by_profession %}
+<strong>{{ profession_group.grouper }}</strong>
+<ul>
+  {% for part in profession_group.list %}
+  <li>{{ part.person.name }}</li>
+  {% endfor %}
+</ul>
+{% endfor %}

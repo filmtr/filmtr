@@ -1,0 +1,6 @@
+<h1>Фильмы:</h1>
+<ul>
+  {% for film in films %}
+  <li><a href="{{ film.get_absolute_url }}">{{ film }}</a></li>
+  {% endfor %}
+<ul>

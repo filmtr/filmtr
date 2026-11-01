@@ -1,3 +1,6 @@
+__pycache__/
 *.pyc
-*.sw[pon]
-/.env/
+.venv/
+/data/raw/
+/data/*.db
+/data/*.db-*

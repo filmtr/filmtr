@@ -1,0 +1,13 @@
+[project]
+name = "filmtr"
+version = "0.1.0"
+description = "Personal catalog of films worth watching, focused on their makers"
+requires-python = ">=3.12"
+dependencies = []
+
+[project.scripts]
+filmtr = "filmtr.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

@@ -5,7 +5,7 @@ import datetime as dt
 import json
 import sqlite3
 
-from filmtr import enrich, paths
+from filmtr import enrich, paths, personal
 from filmtr.lists import LISTS, imdb_core
 from filmtr.log import log
 from filmtr.match import FilmMatcher, match_people
@@ -73,41 +73,28 @@ def collect_lists(staging: sqlite3.Connection) -> dict[str, list[dict]]:
     return entries
 
 
-def build() -> None:
-    staging = imdb.connect()
-    entries = collect_lists(staging)
+def copy_films(db: sqlite3.Connection, film_ids: set[str], extra_people: set[str] = frozenset()) -> set[str]:
+    """Copy films with their genres, ratings, credits and people from the
+    staging db into the catalog; films already present are skipped.
 
-    tmp = paths.CATALOG_DB.with_suffix(".tmp")
-    tmp.unlink(missing_ok=True)
-    db = sqlite3.connect(tmp)
-    db.executescript(paths.SCHEMA.read_text())
+    Returns the ids of the films actually added.
+    """
+    db.commit()  # ATTACH is not allowed inside a transaction
     db.execute(f"ATTACH DATABASE '{paths.IMDB_DB}' AS s")
-
-    # Films: everything listed, plus filmographies of their directors and of
-    # listed people.
-    listed = {e["film_id"] for es in entries.values() for e in es if e.get("film_id")}
-    listed_people = {e["person_id"] for es in entries.values() for e in es if e.get("person_id")}
-    db.execute("CREATE TEMP TABLE listed (id TEXT PRIMARY KEY)")
-    db.executemany("INSERT OR IGNORE INTO listed VALUES (?)", ((t,) for t in listed))
-    db.execute("CREATE TEMP TABLE makers (id TEXT PRIMARY KEY)")
-    db.executemany("INSERT OR IGNORE INTO makers VALUES (?)", ((p,) for p in listed_people))
-    db.execute("INSERT OR IGNORE INTO makers SELECT nconst FROM s.crew "
-               "WHERE role = 'director' AND tconst IN (SELECT id FROM listed)")
-    kinds = ",".join(f"'{k}'" for k in FILMOGRAPHY_KINDS)
-    db.execute(f"""
-        CREATE TEMP TABLE films AS
-        SELECT id FROM listed
-        UNION
-        SELECT c.tconst FROM s.crew c JOIN s.title t USING (tconst)
-        WHERE c.role = 'director' AND c.nconst IN (SELECT id FROM makers)
-          AND t.kind IN ({kinds}) AND t.votes >= {FILMOGRAPHY_MIN_VOTES} AND t.is_adult = 0""")
-    log(f"films: {len(listed)} listed, "
-        f"{db.execute('SELECT count(*) FROM films').fetchone()[0]} with filmographies")
+    present = {r[0] for r in db.execute("SELECT id FROM film")}
+    db.execute("DROP TABLE IF EXISTS temp.films")
+    db.execute("CREATE TEMP TABLE films (id TEXT PRIMARY KEY)")
+    db.executemany("INSERT OR IGNORE INTO films VALUES (?)", ((t,) for t in film_ids - present))
+    added = {r[0] for r in db.execute("SELECT id FROM films WHERE id IN (SELECT tconst FROM s.title)")}
 
     db.execute("""
-        INSERT INTO film (id, kind, title, original_title, year, end_year, runtime_min)
-        SELECT tconst, kind, primary_title, nullif(original_title, primary_title), year, end_year, runtime
-        FROM s.title WHERE tconst IN (SELECT id FROM films)""")
+        INSERT INTO film (id, kind, title, original_title, year, end_year, runtime_min, title_ru)
+        SELECT t.tconst, t.kind, t.primary_title, nullif(t.original_title, t.primary_title),
+               t.year, t.end_year, t.runtime,
+               -- Russian title from IMDb; Wikidata labels override it later.
+               (SELECT a.title FROM s.aka a WHERE a.tconst = t.tconst AND a.region IN ('RU', 'SUHH')
+                ORDER BY a.region = 'RU' DESC, a.rowid LIMIT 1)
+        FROM s.title t WHERE t.tconst IN (SELECT id FROM films)""")
     db.execute("""
         INSERT INTO rating (film_id, source, value, scale, votes)
         SELECT tconst, 'imdb', rating, 10, votes FROM s.title
@@ -118,13 +105,6 @@ def build() -> None:
         genres += [(t, x) for x in g.split(",")]
     db.executemany("INSERT INTO film_genre VALUES (?, ?)", genres)
 
-    # Russian titles from IMDb; Wikidata labels override them later.
-    db.execute("""
-        UPDATE film SET title_ru = (
-            SELECT a.title FROM s.aka a WHERE a.tconst = film.id AND a.region IN ('RU', 'SUHH')
-            ORDER BY a.region = 'RU' DESC, a.rowid LIMIT 1)""")
-
-    log("credits")
     credits: dict[tuple[str, str, str], list] = {}
     for t, n, role, ord_ in db.execute(
             "SELECT tconst, nconst, role, ord FROM s.crew WHERE tconst IN (SELECT id FROM films)"):
@@ -144,22 +124,67 @@ def build() -> None:
         c[0] = min(c[0], ord_)
         c[1] = c[1] or job
         c[2] = c[2] or characters
-    people = {n for _, n, _ in credits} | listed_people
+    people = {n for _, n, _ in credits} | set(extra_people)
+    db.execute("DROP TABLE IF EXISTS temp.people")
     db.execute("CREATE TEMP TABLE people (id TEXT PRIMARY KEY)")
     db.executemany("INSERT OR IGNORE INTO people VALUES (?)", ((p,) for p in people))
     db.execute("""
-        INSERT INTO person (id, name, birth_year, death_year)
+        INSERT OR IGNORE INTO person (id, name, birth_year, death_year)
         SELECT nconst, name, birth_year, death_year FROM s.name WHERE nconst IN (SELECT id FROM people)""")
     # IMDb credits occasionally point to people missing from name.basics.
-    known = {r[0] for r in db.execute("SELECT id FROM person")}
+    known = {r[0] for r in db.execute("SELECT id FROM person WHERE id IN (SELECT id FROM people)")}
     db.executemany(
         "INSERT INTO credit VALUES (?, ?, ?, ?, ?, ?)",
         ((t, n, role, *v) for (t, n, role), v in credits.items() if n in known))
+    db.commit()
+    db.execute("DETACH DATABASE s")
+    return added
+
+
+def ensure_films(db: sqlite3.Connection, film_ids: set[str]) -> set[str]:
+    """Add films missing from the catalog, enriched from Wikidata."""
+    added = copy_films(db, film_ids)
+    if added:
+        log(f"adding {len(added)} films to the catalog")
+        enrich.wikidata(db, film_ids=added)
+    return added
+
+
+def build() -> None:
+    staging = imdb.connect()
+    entries = collect_lists(staging)
+
+    tmp = paths.CATALOG_DB.with_suffix(".tmp")
+    tmp.unlink(missing_ok=True)
+    db = sqlite3.connect(tmp)
+    db.executescript(paths.SCHEMA.read_text())
+
+    # Films: everything listed, plus filmographies of their directors and of
+    # listed people.
+    listed = {e["film_id"] for es in entries.values() for e in es if e.get("film_id")}
+    listed_people = {e["person_id"] for es in entries.values() for e in es if e.get("person_id")}
+    makers = set(listed_people)
+    kinds = ",".join(f"'{k}'" for k in FILMOGRAPHY_KINDS)
+    staging.execute("CREATE TEMP TABLE listed (id TEXT PRIMARY KEY)")
+    staging.executemany("INSERT OR IGNORE INTO listed VALUES (?)", ((t,) for t in listed))
+    makers |= {r[0] for r in staging.execute(
+        "SELECT nconst FROM crew WHERE role = 'director' AND tconst IN (SELECT id FROM listed)")}
+    staging.execute("CREATE TEMP TABLE makers (id TEXT PRIMARY KEY)")
+    staging.executemany("INSERT OR IGNORE INTO makers VALUES (?)", ((p,) for p in makers))
+    filmography = {r[0] for r in staging.execute(f"""
+        SELECT c.tconst FROM crew c JOIN title t USING (tconst)
+        WHERE c.role = 'director' AND c.nconst IN (SELECT id FROM makers)
+          AND t.kind IN ({kinds}) AND t.votes >= {FILMOGRAPHY_MIN_VOTES} AND t.is_adult = 0""")}
+    films = listed | filmography
+    log(f"films: {len(listed)} listed, {len(films)} with filmographies")
+    log("copying films and credits")
+    copy_films(db, films, listed_people)
 
     log("lists")
     now = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")
     for spec in LISTS:
-        db.execute("INSERT INTO list VALUES (?,?,?,?,?,?,?,?,?,?)",
+        db.execute("INSERT INTO list (id, title, title_ru, kind, entity, source, url, edition, "
+                   "description, fetched_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
                    (spec.id, spec.title, spec.title_ru, spec.kind, spec.entity, spec.source,
                     spec.url, spec.edition or (imdb.snapshot_date() if spec.kind == "computed" else None),
                     spec.description, now))
@@ -171,11 +196,10 @@ def build() -> None:
                 (spec.id, e.get("pos"), e["year"] if spec.kind == "award" else None,
                  e.get("film_id"), e.get("person_id"), e.get("match"),
                  json.dumps(raw, ensure_ascii=False)))
-
     db.commit()
-    db.execute("DETACH DATABASE s")
 
     enrich.wikidata(db)
+    personal.sync(db)
     db.execute("ANALYZE")
     db.commit()
     db.close()

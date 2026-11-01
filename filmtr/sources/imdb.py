@@ -165,16 +165,48 @@ def stage() -> None:
 
     log("indexes")
     db.executescript(INDEXES)
+    build_search_index(db)
     db.commit()
     db.close()
     tmp.replace(db_path)
     log(f"staged into {db_path}")
 
 
+# Full-text index over primary, original and alternative titles. unicode61
+# folds case for all scripts and strips diacritics, so "амели" finds "Амели"
+# and "amelie" finds "Amélie".
+SEARCH_MIN_VOTES = 5
+SEARCH_INDEX_VERSION = 2  # bump to rebuild the index on next use
+
+
+def build_search_index(db: sqlite3.Connection) -> None:
+    log("search index")
+    db.executescript("""
+        DROP TABLE IF EXISTS title_search;
+        CREATE VIRTUAL TABLE title_search USING fts5(
+            tconst UNINDEXED, text, tokenize = 'unicode61 remove_diacritics 2');
+    """)
+    # unicode61 does not fold Cyrillic ё to е; do it on both sides (see search.py).
+    db.execute("""
+        INSERT INTO title_search (tconst, text)
+        SELECT tconst, replace(replace(text, 'ё', 'е'), 'Ё', 'Е') FROM (
+            SELECT tconst, primary_title AS text FROM title WHERE votes >= ?
+            UNION
+            SELECT tconst, original_title FROM title WHERE votes >= ? AND original_title <> primary_title
+            UNION
+            SELECT tconst, title FROM aka)""", (SEARCH_MIN_VOTES, SEARCH_MIN_VOTES))
+    db.execute(f"PRAGMA user_version = {SEARCH_INDEX_VERSION}")
+    db.commit()
+
+
 def connect() -> sqlite3.Connection:
     if not paths.IMDB_DB.exists():
         stage()
-    return sqlite3.connect(paths.IMDB_DB)
+    db = sqlite3.connect(paths.IMDB_DB)
+    if not db.execute("SELECT 1 FROM sqlite_master WHERE name = 'title_search'").fetchone() \
+            or db.execute("PRAGMA user_version").fetchone()[0] < SEARCH_INDEX_VERSION:
+        build_search_index(db)
+    return db
 
 
 def snapshot_date() -> str:

@@ -94,15 +94,15 @@ CREATE TABLE credit (
 ) WITHOUT ROWID;
 CREATE INDEX credit_person ON credit(person_id, role);
 
--- Lists: critics' polls, awards, computed selections -------------------
+-- Lists: critics' polls, awards, computed selections, personal lists ---
 
 CREATE TABLE list (
     id          TEXT PRIMARY KEY,       -- slug, e.g. tspdt-1000
     title       TEXT NOT NULL,
     title_ru    TEXT,
-    kind        TEXT NOT NULL,          -- poll | award | computed
+    kind        TEXT NOT NULL,          -- poll | award | computed | personal
     entity      TEXT NOT NULL,          -- film | person
-    source      TEXT NOT NULL,          -- tspdt, bfi, wikidata, imdb
+    source      TEXT NOT NULL,          -- tspdt, bfi, wikidata, imdb; me for personal lists
     url         TEXT,
     edition     TEXT,                   -- e.g. "2026" for a yearly poll
     description TEXT,
@@ -114,16 +114,26 @@ CREATE TABLE list (
 CREATE TABLE list_entry (
     id        INTEGER PRIMARY KEY,
     list_id   TEXT NOT NULL REFERENCES list(id) ON DELETE CASCADE,
-    pos       INTEGER,                  -- rank in a poll; NULL for awards
+    pos       INTEGER,                  -- rank in a poll, order in a personal list; NULL for awards
     year      INTEGER,                  -- award year, if any
     film_id   TEXT REFERENCES film(id),
     person_id TEXT REFERENCES person(id),
     match     TEXT,                     -- id | exact | fuzzy | override; NULL = unmatched
+    note      TEXT,                     -- personal lists: free-form note
+    added_at  TEXT,                     -- personal lists: date added
     raw       TEXT NOT NULL             -- JSON of the source row
 );
 CREATE INDEX list_entry_list ON list_entry(list_id, pos);
 CREATE INDEX list_entry_film ON list_entry(film_id);
 CREATE INDEX list_entry_person ON list_entry(person_id);
+
+-- Tags on list entries, e.g. "с детьми", "пересмотреть" in a personal queue.
+CREATE TABLE entry_tag (
+    entry_id INTEGER NOT NULL REFERENCES list_entry(id) ON DELETE CASCADE,
+    tag      TEXT NOT NULL,
+    PRIMARY KEY (entry_id, tag)
+) WITHOUT ROWID;
+CREATE INDEX entry_tag_tag ON entry_tag(tag);
 
 -- Views -----------------------------------------------------------------
 

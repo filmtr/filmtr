@@ -129,6 +129,14 @@ def cmd_show(args) -> None:
         print()
 
 
+def cmd_tmdb(args) -> None:
+    """Load TMDB data on demand: for given films, or for the whole catalog."""
+    from filmtr import paths, tmdb
+    with sqlite3.connect(paths.CATALOG_DB) as db:
+        ids = set(args.ids) or {r[0] for r in db.execute("SELECT id FROM catalog")}
+        tmdb.enrich(db, ids, refresh=args.refresh)
+
+
 def main() -> None:
     p = argparse.ArgumentParser(prog="filmtr")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -163,6 +171,11 @@ def main() -> None:
     s.add_argument("list", nargs="?")
     s.add_argument("--tag", help="only entries with this tag")
     s.set_defaults(func=cmd_show)
+
+    t = sub.add_parser("tmdb", help="load TMDB data (overview, poster, crew) for films; default: catalog")
+    t.add_argument("ids", nargs="*", help="IMDb ids (tt...)")
+    t.add_argument("--refresh", action="store_true", help="reload even if already loaded")
+    t.set_defaults(func=cmd_tmdb)
 
     args = p.parse_args()
     if hasattr(args, "func"):

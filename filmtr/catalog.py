@@ -5,7 +5,7 @@ import datetime as dt
 import json
 import sqlite3
 
-from filmtr import enrich, paths, personal
+from filmtr import enrich, paths, personal, tmdb
 from filmtr.lists import LISTS, imdb_core
 from filmtr.log import log
 from filmtr.match import FilmMatcher, match_people
@@ -200,6 +200,7 @@ def build() -> None:
 
     enrich.wikidata(db)
     personal.sync(db)
+    tmdb.enrich(db, {r[0] for r in db.execute("SELECT film_id FROM list_entry WHERE film_id IS NOT NULL")})
     db.execute("ANALYZE")
     db.commit()
     db.close()

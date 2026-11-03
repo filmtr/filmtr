@@ -26,7 +26,17 @@ CREATE TABLE film (
     wikidata_id     TEXT,
     tmdb_id         INTEGER,
     kinopoisk_id    INTEGER,
-    letterboxd_slug TEXT
+    letterboxd_slug TEXT,
+    -- From TMDB, loaded for listed films at build time and for others on demand.
+    tmdb_type       TEXT,               -- movie | tv (TMDB keeps series apart)
+    tmdb_status     TEXT,               -- ok | missing; NULL = not fetched yet
+    overview_ru     TEXT,
+    overview_en     TEXT,
+    tagline_ru      TEXT,
+    tagline_en      TEXT,
+    original_language TEXT,             -- ISO 639-1
+    poster_path     TEXT,               -- TMDB image path; local copy in data/posters/<size>/
+    backdrop_path   TEXT
 );
 CREATE INDEX film_year ON film(year);
 
@@ -55,10 +65,23 @@ CREATE TABLE film_country (
 ) WITHOUT ROWID;
 CREATE INDEX film_country_country ON film_country(country);
 
+-- TMDB keywords (English), e.g. "time travel", "based on novel or book".
+CREATE TABLE keyword (
+    id   INTEGER PRIMARY KEY,           -- TMDB keyword id
+    name TEXT NOT NULL
+);
+
+CREATE TABLE film_keyword (
+    film_id TEXT NOT NULL REFERENCES film(id) ON DELETE CASCADE,
+    keyword INTEGER NOT NULL REFERENCES keyword(id),
+    PRIMARY KEY (film_id, keyword)
+) WITHOUT ROWID;
+CREATE INDEX film_keyword_keyword ON film_keyword(keyword);
+
 -- Ratings from external sources; one row per film and source.
 CREATE TABLE rating (
     film_id TEXT NOT NULL REFERENCES film(id) ON DELETE CASCADE,
-    source  TEXT NOT NULL,              -- imdb, (later: tmdb, kinopoisk, letterboxd)
+    source  TEXT NOT NULL,              -- imdb, tmdb (later: kinopoisk, letterboxd)
     value   REAL NOT NULL,              -- on the source's own scale
     scale   REAL NOT NULL,              -- maximum of that scale, e.g. 10
     votes   INTEGER,
@@ -74,7 +97,8 @@ CREATE TABLE person (
     birth_year  INTEGER,
     death_year  INTEGER,
     wikidata_id TEXT,
-    tmdb_id     INTEGER
+    tmdb_id     INTEGER,
+    photo_path  TEXT                    -- TMDB profile image path
 );
 
 CREATE TABLE role (
@@ -152,6 +176,8 @@ SELECT f.id,
        f.original_title,
        f.year,
        f.runtime_min,
+       f.overview_ru,
+       f.poster_path,
        r.value AS imdb_rating,
        r.votes AS imdb_votes,
        (SELECT group_concat(g.genre, ', ') FROM film_genre g WHERE g.film_id = f.id) AS genres,
@@ -174,10 +200,11 @@ INSERT INTO role (id, name_ru, sort) VALUES
     ('composer',            'Композитор',          4),
     ('editor',              'Монтажёр',            5),
     ('production_designer', 'Художник-постановщик', 6),
-    ('producer',            'Продюсер',            7),
-    ('actor',               'Актёр',               8),
-    ('self',                'В роли себя',         9),
-    ('casting_director',    'Кастинг-директор',    10);
+    ('costume_designer',    'Художник по костюмам', 7),
+    ('producer',            'Продюсер',            8),
+    ('actor',               'Актёр',               9),
+    ('self',                'В роли себя',         10),
+    ('casting_director',    'Кастинг-директор',    11);
 
 INSERT INTO genre (id, name_ru) VALUES
     ('Action', 'Боевик'), ('Adult', 'Для взрослых'), ('Adventure', 'Приключения'),

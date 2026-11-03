@@ -22,7 +22,12 @@ def show() -> None:
     for label, cond in [("Russian title", "title_ru IS NOT NULL"), ("Wikidata", "wikidata_id IS NOT NULL"),
                         ("TMDB id", "tmdb_id IS NOT NULL"), ("Kinopoisk id", "kinopoisk_id IS NOT NULL"),
                         ("Letterboxd", "letterboxd_slug IS NOT NULL"),
-                        ("country", "id IN (SELECT film_id FROM film_country)")]:
+                        ("country", "id IN (SELECT film_id FROM film_country)"),
+                        ("TMDB data", "tmdb_status = 'ok'"), ("overview (ru)", "overview_ru IS NOT NULL"),
+                        ("poster", "poster_path IS NOT NULL"),
+                        ("keywords", "id IN (SELECT film_id FROM film_keyword)"),
+                        ("composer", "id IN (SELECT film_id FROM credit WHERE role = 'composer')"),
+                        ("prod. design", "id IN (SELECT film_id FROM credit WHERE role = 'production_designer')")]:
         n = q(f"SELECT count(*) FROM catalog WHERE {cond}")
         total = q("SELECT count(*) FROM catalog")
         print(f"  {label:<14} {n:>6} ({100 * n / total:.0f}%)")

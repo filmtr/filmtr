@@ -27,7 +27,15 @@ uv run filmtr remove watchlist tt1504320 --tag "с детьми"  # снять �
 uv run filmtr show watchlist --tag "с детьми"
 ```
 
-Если фильма ещё нет в каталоге, `add` добавит его вместе со съёмочной группой.
+Если фильма ещё нет в каталоге, `add` добавит его вместе со съёмочной группой, описанием и постером.
+
+## Данные TMDB
+
+Описания, постеры (`data/posters/w342/`), ключевые слова и полные съёмочные группы загружаются при сборке только для фильмов из списков: лучших и личных. Остальные фильмы базы, то есть фильмографии, подгружаются по требованию:
+
+```sh
+uv run filmtr tmdb tt0056592 tt0060107   # конкретные фильмы
+```
 
 ## Как устроено
 
@@ -55,4 +63,5 @@ tspdt-1000,123,Some Title,tt0012345,альтернативное названи�
 
 - [IMDb Non-Commercial Datasets](https://developer.imdb.com/non-commercial-datasets/) — только личное некоммерческое использование.
 - [Wikidata](https://www.wikidata.org/) — CC0.
+- [TMDB](https://www.themoviedb.org/) — описания, постеры, полные съёмочные группы. *This product uses the TMDB API but is not endorsed or certified by TMDB.* Бесплатно для некоммерческого использования. Ключ API читается из `~/.tmdb-api-read-access-token` или `~/.tmdb-api-key` (либо `$TMDB_TOKEN`, `$TMDB_API_KEY`) и в репозиторий не попадает.
 - [They Shoot Pictures, Don't They](https://theyshootpictures.com/) и [BFI Sight and Sound](https://www.bfi.org.uk/sight-and-sound/greatest-films-all-time) — списки для личного использования.

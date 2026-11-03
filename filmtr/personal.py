@@ -89,11 +89,12 @@ def today() -> str:
 
 def sync(db: sqlite3.Connection) -> None:
     """Mirror my/*.csv into the catalog, adding films that are not there yet."""
-    from filmtr import catalog, enrich  # catalog imports this module
+    from filmtr import catalog, enrich, tmdb  # catalog imports this module
 
     lists = load_all()
     film_ids = {e.imdb_id for pl in lists for e in pl.entries}
     catalog.ensure_films(db, film_ids)
+    tmdb.enrich(db, film_ids)
 
     # Russian names for the cast and crew of personal films.
     if film_ids:
@@ -103,7 +104,7 @@ def sync(db: sqlite3.Connection) -> None:
             f"WHERE c.film_id IN ({marks}) AND (c.role <> 'actor' OR c.billing <= 6) "
             f"AND p.wikidata_id IS NULL", sorted(film_ids))]
         if missing:
-            enrich._people(db, missing)
+            enrich.people(db, missing)
 
     old = [r[0] for r in db.execute("SELECT id FROM list WHERE kind = 'personal'")]
     for list_id in old:

@@ -58,7 +58,8 @@ def _films(db: sqlite3.Connection, ids: list[str]) -> None:
         db.commit()
 
 
-def _people(db: sqlite3.Connection, ids: list[str]) -> None:
+def people(db: sqlite3.Connection, ids: list[str]) -> None:
+    """Wikidata ids, TMDB ids and Russian names for these people."""
     log(f"wikidata: {len(ids)} people")
     for n, chunk in enumerate(chunks(sorted(ids), PERSON_CHUNK)):
         if n % 20 == 0:
@@ -91,11 +92,11 @@ def wikidata(db: sqlite3.Connection, film_ids: set[str] | None = None) -> None:
     """Enrich all films (and notable people), or only the given films and their people."""
     if film_ids is None:
         _films(db, [r[0] for r in db.execute("SELECT id FROM film ORDER BY id")])
-        _people(db, [r[0] for r in db.execute(PEOPLE_QUERY)])
+        people(db, [r[0] for r in db.execute(PEOPLE_QUERY)])
     else:
         _films(db, sorted(film_ids))
         marks = ",".join("?" * len(film_ids))
-        people = [r[0] for r in db.execute(
+        crew = [r[0] for r in db.execute(
             f"SELECT DISTINCT person_id FROM credit WHERE film_id IN ({marks}) "
             f"AND (role <> 'actor' OR billing <= 6)", sorted(film_ids))]
-        _people(db, people)
+        people(db, crew)

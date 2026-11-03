@@ -9,3 +9,4 @@ IMDB_DB = DATA / "imdb.db"     # staging mirror of IMDb, rebuildable
 CATALOG_DB = DATA / "filmtr.db"
 OVERRIDES = DATA / "overrides"
 SCHEMA = Path(__file__).resolve().parent / "schema.sql"
+POSTERS = DATA / "posters"     # downloaded TMDB posters, by size

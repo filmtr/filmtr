@@ -1,0 +1,32 @@
+{
+  // Cloudflare Worker: serves the static app and catalog data (dist/),
+  // and the personal-lists API (/api/*) backed by D1.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "filmtr",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    // Every request, assets included, goes through the Worker's Access check:
+    // the catalog is derived from IMDb data licensed for personal use only.
+    "run_worker_first": true
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "filmtr",
+      // Replace with the id printed by `npx wrangler d1 create filmtr`.
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "vars": {
+    // Cloudflare Access. Without both values every request is refused (fail
+    // closed); local development opts out with DEV_NO_AUTH=1 in .dev.vars.
+    // ACCESS_TEAM_DOMAIN: "<team>.cloudflareaccess.com", ACCESS_AUD: application audience tag.
+    "ACCESS_TEAM_DOMAIN": "",
+    "ACCESS_AUD": ""
+  }
+  // Secrets: TMDB_TOKEN (wrangler secret put TMDB_TOKEN); locally in .dev.vars.
+}

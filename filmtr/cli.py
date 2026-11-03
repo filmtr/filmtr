@@ -137,6 +137,16 @@ def cmd_tmdb(args) -> None:
         tmdb.enrich(db, ids, refresh=args.refresh)
 
 
+def cmd_web(args) -> None:
+    from filmtr import web
+    if args.action == "export":
+        web.export()
+    elif args.action == "seed":
+        web.seed(remote=args.remote, force=args.force)
+    elif args.action == "pull":
+        web.pull(remote=args.remote)
+
+
 def main() -> None:
     p = argparse.ArgumentParser(prog="filmtr")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -176,6 +186,13 @@ def main() -> None:
     t.add_argument("ids", nargs="*", help="IMDb ids (tt...)")
     t.add_argument("--refresh", action="store_true", help="reload even if already loaded")
     t.set_defaults(func=cmd_tmdb)
+
+    w = sub.add_parser("web", help="web app: export static data, sync personal lists with D1")
+    w.add_argument("action", choices=["export", "seed", "pull"],
+                   help="export: catalog JSON to web/public/data; seed: my/*.csv -> D1; pull: D1 -> my/*.csv")
+    w.add_argument("--remote", action="store_true", help="use the deployed D1 instead of the local one")
+    w.add_argument("--force", action="store_true", help="seed: overwrite non-empty D1 lists")
+    w.set_defaults(func=cmd_web)
 
     args = p.parse_args()
     if hasattr(args, "func"):

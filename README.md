@@ -29,6 +29,51 @@ uv run filmtr show watchlist --tag "с детьми"
 
 Если фильма ещё нет в каталоге, `add` добавит его вместе со съёмочной группой, описанием и постером.
 
+## Веб-интерфейс
+
+`web/` — лёгкое приложение для Cloudflare: Worker со статическими файлами и базой D1.
+
+- **Каталог** — статические JSON-файлы, которые собирает `filmtr web export` в `web/public/data/` (в git не попадают: это производные данные IMDb).
+- **Личные списки** — в D1, их правит Worker (`/api/my`). Постеры берутся с CDN TMDB.
+- **Доступ** — только через Cloudflare Access. Worker проверяет токен Access на каждом запросе, включая статические файлы. Пока Access не настроен, сайт отдаёт 403 на всё.
+
+### Локально
+
+```sh
+uv run filmtr web export                    # каталог в web/public/data
+cd web && npm install
+npm run db:migrate:local                    # таблицы личных списков в локальной D1
+cd .. && uv run filmtr web seed && cd web   # my/*.csv -> локальная D1
+printf 'DEV_NO_AUTH=1\nTMDB_TOKEN=%s\n' "$(cat ~/.tmdb-api-read-access-token)" > .dev.vars
+npm run dev                                 # http://localhost:5173
+```
+
+### Первый деплой
+
+```sh
+cd web
+npx wrangler login
+npx wrangler d1 create filmtr               # id базы вписать в wrangler.jsonc, database_id
+npm run db:migrate:remote
+npx wrangler secret put TMDB_TOKEN          # вставить токен из ~/.tmdb-api-read-access-token
+cd .. && uv run filmtr web seed --remote && cd web
+npm run deploy                              # https://filmtr.<аккаунт>.workers.dev, пока всё отдаёт 403
+```
+
+Затем включить Cloudflare Access: в панели Cloudflare открыть Workers & Pages → filmtr → Settings → Domains & Routes и включить Cloudflare Access для workers.dev. В политике оставить только свой email. Из настроек приложения Access (Zero Trust → Access → Applications) взять team domain (`<team>.cloudflareaccess.com`) и Application Audience (AUD), вписать их в `vars` в `wrangler.jsonc` и снова выполнить `npm run deploy`.
+
+### Обновление данных
+
+Личные списки правятся в вебе, а в git сохраняются так:
+
+```sh
+uv run filmtr web pull --remote   # D1 -> my/*.csv, затем закоммитить
+uv run filmtr build               # фильмы, добавленные из веба, попадают в каталог с полными данными
+uv run filmtr web export && (cd web && npm run deploy)
+```
+
+Пока работает веб, главная копия личных списков — в D1. Команды `filmtr add/remove` правят только `my/*.csv`. Чтобы перенести такие правки в веб, нужен `filmtr web seed --remote --force`, а он перезапишет то, что изменили в вебе.
+
 ## Данные TMDB
 
 Описания, постеры (`data/posters/w342/`), ключевые слова и полные съёмочные группы загружаются при сборке только для фильмов из списков: лучших и личных. Остальные фильмы базы, то есть фильмографии, подгружаются по требованию:

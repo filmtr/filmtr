@@ -1,0 +1,28 @@
+{
+  "name": "filmtr-web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "deploy": "vite build && wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "db:migrate:local": "wrangler d1 migrations apply filmtr --local",
+    "db:migrate:remote": "wrangler d1 migrations apply filmtr --remote"
+  },
+  "dependencies": {
+    "@preact/signals": "^2.11.4",
+    "preact": "^11.1.1",
+    "preact-iso": "^2.12.2"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.67.0",
+    "@cloudflare/workers-types": "^5.20261103.1",
+    "@preact/preset-vite": "^2.10.6",
+    "playwright-core": "^1.64.1",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5",
+    "wrangler": "^4.156.2"
+  }
+}

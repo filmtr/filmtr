@@ -1,0 +1,800 @@
+/* filmtr: a personal shelf in a darkened screening room.
+   Posters carry the colour; the interface stays slate and quiet.
+   One accent, projector amber, marks what you act on. */
+
+:root {
+  --ground: #1c2230;
+  --raise: #252c3c;
+  --line: #353d50;
+  --text: #ece8e1;
+  --muted: #8e95a6;
+  --amber: #f2b544;
+  --amber-ink: #2b1f06;
+  --danger: #e6907e;
+  --sans: "Golos Text", system-ui, sans-serif;
+  --serif: "Literata", Georgia, serif;
+  --radius-poster: 3px;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--ground);
+  color: var(--text);
+  font: 400 16px/1.5 var(--sans);
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+#app {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 0 20px 48px;
+}
+
+a {
+  color: inherit;
+  text-decoration-color: color-mix(in srgb, var(--text) 35%, transparent);
+  text-underline-offset: 3px;
+}
+
+a:hover {
+  text-decoration-color: var(--amber);
+}
+
+:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+h1,
+h2 {
+  margin: 0;
+  font-weight: 600;
+}
+
+h2 {
+  font-size: 1.05rem;
+  margin: 36px 0 12px;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.pad {
+  padding: 32px 0;
+}
+
+.error {
+  color: var(--danger);
+}
+
+/* Header ------------------------------------------------------------------ */
+
+.top {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 28px;
+  padding: 14px 0;
+  background: color-mix(in srgb, var(--ground) 92%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--line);
+}
+
+.brand {
+  font: italic 400 1.5rem/1 var(--serif);
+  text-decoration: none;
+  letter-spacing: -0.01em;
+}
+
+.top nav {
+  display: flex;
+  gap: 20px;
+}
+
+.top nav a {
+  color: var(--muted);
+  text-decoration: none;
+  padding: 4px 0;
+  border-bottom: 2px solid transparent;
+}
+
+.top nav a.on {
+  color: var(--text);
+  border-bottom-color: var(--amber);
+}
+
+.search {
+  margin-left: auto;
+  flex: 0 1 320px;
+}
+
+input[type="search"],
+select,
+.tag-input,
+.note {
+  font: inherit;
+  color: var(--text);
+  background: var(--raise);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 7px 10px;
+}
+
+.search input {
+  width: 100%;
+}
+
+select {
+  appearance: none;
+  padding-right: 28px;
+  background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%),
+    linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position: calc(100% - 15px) 55%, calc(100% - 10px) 55%;
+  background-size: 5px 5px;
+  background-repeat: no-repeat;
+}
+
+@media (max-width: 640px) {
+  .search {
+    flex-basis: 100%;
+    margin-left: 0;
+  }
+}
+
+/* Buttons ------------------------------------------------------------------ */
+
+.btn {
+  font: inherit;
+  font-weight: 500;
+  color: var(--text);
+  background: var(--raise);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px 14px;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.btn:hover {
+  border-color: var(--muted);
+}
+
+.btn.primary {
+  background: var(--amber);
+  border-color: var(--amber);
+  color: var(--amber-ink);
+}
+
+.link {
+  font: inherit;
+  color: var(--amber);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+.link.quiet {
+  color: var(--muted);
+}
+
+.link:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* Lists page: list switch --------------------------------------------------- */
+
+.list-switch {
+  display: flex;
+  gap: 28px;
+  margin: 28px 0 20px;
+}
+
+.list-switch button {
+  font: 500 1.9rem/1.1 var(--serif);
+  color: var(--muted);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+.list-switch button.on {
+  color: var(--text);
+}
+
+.list-switch .count {
+  font: 400 0.95rem var(--sans);
+  color: var(--muted);
+  margin-left: 6px;
+  vertical-align: super;
+}
+
+/* Tags: pills with a hue per tag; posters keep square corners */
+
+.tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.tag {
+  --h: 200;
+  font: 500 0.82rem/1 var(--sans);
+  color: hsl(var(--h) 55% 82%);
+  background: hsl(var(--h) 28% 26%);
+  border: 1px solid hsl(var(--h) 28% 34%);
+  border-radius: 999px;
+  padding: 5px 10px;
+  white-space: nowrap;
+}
+
+button.tag {
+  cursor: pointer;
+}
+
+.tag.on {
+  color: var(--ground);
+  background: hsl(var(--h) 60% 74%);
+  border-color: hsl(var(--h) 60% 74%);
+}
+
+.moods {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 28px;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.filters select {
+  max-width: 100%;
+  min-width: 0;
+}
+
+.filter-q {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+.pick-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 18px;
+}
+
+.pick {
+  font: 600 1rem var(--sans);
+  color: var(--amber-ink);
+  background: var(--amber);
+  border: 0;
+  border-radius: 999px;
+  padding: 11px 22px;
+  cursor: pointer;
+}
+
+.pick:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.empty {
+  color: var(--muted);
+  max-width: 46ch;
+  padding: 24px 0;
+}
+
+/* Poster grid ---------------------------------------------------------------- */
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 28px 18px;
+  min-width: 0;
+}
+
+@media (max-width: 480px) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 22px 12px;
+  }
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-decoration: none;
+  min-width: 0;
+}
+
+.poster {
+  display: block;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
+  border-radius: var(--radius-poster);
+  background: var(--raise);
+}
+
+.poster.none {
+  display: flex;
+  align-items: flex-end;
+  padding: 10px;
+  font: 500 0.95rem/1.25 var(--serif);
+  color: var(--muted);
+  border: 1px solid var(--line);
+}
+
+.card:hover .poster {
+  outline: 2px solid color-mix(in srgb, var(--amber) 70%, transparent);
+  outline-offset: 2px;
+}
+
+.card-title {
+  margin-top: 6px;
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.card-sub {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.card-tags .tag {
+  font-size: 0.72rem;
+  padding: 3px 8px;
+}
+
+.card-note {
+  font: italic 400 0.85rem/1.4 var(--serif);
+  color: var(--muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* The pick: a pool of projector light around the chosen film --------------- */
+
+.picked-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: radial-gradient(ellipse 60% 55% at 50% 0%, rgb(242 181 68 / 0.22), transparent 70%),
+    rgb(14 18 27 / 0.97);
+  animation: fade 220ms ease-out;
+}
+
+.picked {
+  display: grid;
+  grid-template-columns: minmax(180px, 300px) minmax(0, 1fr);
+  gap: 28px;
+  max-width: 820px;
+  max-height: calc(100vh - 40px);
+  overflow: auto;
+  animation: rise 260ms ease-out;
+}
+
+.picked .poster {
+  box-shadow: 0 0 80px rgb(242 181 68 / 0.18);
+}
+
+.picked-body {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+}
+
+.picked .overview {
+  display: -webkit-box;
+  -webkit-line-clamp: 6;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.picked-note {
+  font: italic 400 1.05rem/1.5 var(--serif);
+  margin: 0;
+}
+
+.picked-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  margin-top: 8px;
+}
+
+@media (max-width: 640px) {
+  .picked {
+    grid-template-columns: 1fr;
+  }
+  .picked .poster {
+    max-width: 220px;
+  }
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .picked-backdrop,
+  .picked {
+    animation: none;
+  }
+}
+
+/* Film page ------------------------------------------------------------------- */
+
+.film-head,
+.person-head {
+  display: grid;
+  grid-template-columns: minmax(160px, 300px) minmax(0, 1fr);
+  gap: 32px;
+  margin-top: 28px;
+}
+
+@media (max-width: 640px) {
+  .film-head,
+  .person-head {
+    grid-template-columns: 1fr;
+  }
+  .film-head > .poster {
+    max-width: 240px;
+  }
+}
+
+.film-title {
+  font: 700 clamp(1.8rem, 4vw, 2.7rem) / 1.1 var(--serif);
+  letter-spacing: -0.015em;
+  margin: 0;
+}
+
+.original {
+  font: italic 400 1.05rem var(--serif);
+  color: var(--muted);
+  margin: 6px 0 0;
+}
+
+.facts,
+.genres {
+  margin: 10px 0 0;
+}
+
+.genres {
+  color: var(--muted);
+}
+
+.ratings {
+  display: flex;
+  gap: 18px;
+  margin: 12px 0 0;
+  color: var(--muted);
+}
+
+.ratings b {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.honours {
+  list-style: none;
+  padding: 0;
+  margin: 16px 0 0;
+  display: grid;
+  gap: 4px;
+}
+
+.honours li {
+  padding-left: 14px;
+  border-left: 2px solid var(--amber);
+}
+
+.tagline {
+  font: italic 400 1.05rem var(--serif);
+  margin: 18px 0 0;
+}
+
+.overview {
+  max-width: 65ch;
+  margin: 12px 0 0;
+}
+
+/* Personal block */
+
+.mine {
+  display: grid;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.mine-row.in {
+  background: var(--raise);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--amber);
+  border-radius: 6px;
+  padding: 12px 14px;
+  display: grid;
+  gap: 10px;
+}
+
+.mine-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 16px;
+}
+
+.mine-list {
+  font-weight: 600;
+  margin-right: auto;
+}
+
+.tag-editor {
+  display: grid;
+  gap: 8px;
+}
+
+.tag-input {
+  flex: 1 1 120px;
+  min-width: 100px;
+  padding: 4px 8px;
+  font-size: 0.9rem;
+}
+
+.suggest .tag:not(.on) {
+  opacity: 0.75;
+}
+
+.note {
+  width: 100%;
+  resize: vertical;
+  font: italic 400 0.98rem/1.5 var(--serif);
+}
+
+/* Crew and cast */
+
+.crew dl {
+  margin: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.crew-row {
+  display: grid;
+  grid-template-columns: 190px 1fr;
+  gap: 16px;
+}
+
+.crew dt {
+  color: var(--muted);
+}
+
+.crew dd {
+  margin: 0;
+}
+
+@media (max-width: 480px) {
+  .crew-row {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+}
+
+.cast ul {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 10px;
+  columns: 2 260px;
+  column-gap: 32px;
+}
+
+.cast li {
+  break-inside: avoid;
+  padding: 2px 0;
+}
+
+.external {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin-top: 40px;
+  color: var(--muted);
+}
+
+/* Person page --------------------------------------------------------------- */
+
+.person-head {
+  grid-template-columns: 160px minmax(0, 1fr);
+}
+
+.photo {
+  width: 160px;
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
+  border-radius: var(--radius-poster);
+  background: var(--raise);
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 18px;
+  cursor: pointer;
+}
+
+.filmography ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.filmography li a {
+  display: grid;
+  grid-template-columns: 34px 48px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 5px 0;
+  text-decoration: none;
+  color: var(--muted);
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 50%, transparent);
+}
+
+.filmography li.in-catalog a {
+  color: var(--text);
+}
+
+.filmography .poster {
+  width: 34px;
+  font-size: 0;
+  padding: 0;
+}
+
+.filmography .fy {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.filmography li a:hover .ft {
+  text-decoration: underline;
+  text-decoration-color: var(--amber);
+}
+
+.mark {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--amber);
+}
+
+/* Catalog and search ------------------------------------------------------------ */
+
+.page-title {
+  font: 700 2rem/1.15 var(--serif);
+  margin: 28px 0 8px;
+}
+
+.lede {
+  max-width: 62ch;
+  margin: 0 0 20px;
+}
+
+.catalog .filters {
+  margin-bottom: 12px;
+}
+
+.more {
+  display: block;
+  margin: 32px auto 0;
+}
+
+.tmdb {
+  margin-top: 36px;
+}
+
+.tmdb-hits {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 14px;
+}
+
+.tmdb-hit {
+  display: grid;
+  grid-template-columns: 60px 1fr;
+  gap: 14px;
+  align-items: start;
+}
+
+.tmdb-hit p {
+  margin: 0 0 4px;
+}
+
+.tmdb-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+}
+
+/* Footer and toasts -------------------------------------------------------------- */
+
+.foot {
+  margin-top: 64px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.8rem;
+  max-width: 70ch;
+}
+
+.toasts {
+  position: fixed;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  z-index: 30;
+  display: grid;
+  gap: 8px;
+  width: min(92vw, 460px);
+}
+
+.toast {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  background: var(--text);
+  color: var(--ground);
+  border-radius: 8px;
+  padding: 11px 16px;
+  font-weight: 500;
+}
+
+.toast .link {
+  color: #8a5a00;
+  font-weight: 600;
+}

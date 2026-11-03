@@ -31,6 +31,7 @@ html {
 body {
   margin: 0;
   min-height: 100vh;
+  overflow-x: clip; /* no sideways wiggle on phones from sub-pixel rounding */
 }
 
 #app {
@@ -202,12 +203,13 @@ select {
 
 .list-switch {
   display: flex;
-  gap: 28px;
+  flex-wrap: wrap;
+  gap: 8px 28px;
   margin: 28px 0 20px;
 }
 
 .list-switch button {
-  font: 500 1.9rem/1.1 var(--serif);
+  font: 500 clamp(1.45rem, 6vw, 1.9rem) / 1.1 var(--serif);
   color: var(--muted);
   background: none;
   border: 0;
@@ -676,7 +678,7 @@ button.tag {
 
 .filmography li a {
   display: grid;
-  grid-template-columns: 34px 48px 1fr auto;
+  grid-template-columns: 34px 44px minmax(0, 1fr) auto;
   gap: 12px;
   align-items: center;
   padding: 5px 0;
@@ -693,6 +695,10 @@ button.tag {
   width: 34px;
   font-size: 0;
   padding: 0;
+}
+
+.filmography .ft {
+  overflow-wrap: anywhere;
 }
 
 .filmography .fy {
@@ -759,6 +765,75 @@ button.tag {
   display: flex;
   flex-wrap: wrap;
   gap: 4px 18px;
+}
+
+/* Books ------------------------------------------------------------------------- */
+
+.book-card {
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+.book-card:hover .poster {
+  outline: 2px solid color-mix(in srgb, var(--amber) 70%, transparent);
+  outline-offset: 2px;
+}
+
+.book-none span {
+  display: grid;
+  gap: 6px;
+  color: var(--text);
+}
+
+.book-none small {
+  font: 400 0.8rem var(--sans);
+  color: var(--muted);
+}
+
+.add-book {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  background: var(--raise);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.add-book .tmdb-hit .poster {
+  width: 60px;
+}
+
+.book-form {
+  display: grid;
+  gap: 10px;
+  max-width: 460px;
+}
+
+.field {
+  display: grid;
+  gap: 4px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.field input {
+  font: inherit;
+  font-size: 1rem;
+  color: var(--text);
+  background: var(--raise);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 7px 10px;
+}
+
+.original-inline {
+  font-family: var(--serif);
+  font-style: italic;
 }
 
 /* Footer and toasts -------------------------------------------------------------- */

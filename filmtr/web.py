@@ -10,8 +10,9 @@ IMDb data, licensed for personal use only):
     film/NN.json      film details, sharded by the last two digits of the IMDb id
     person/NN.json    people with their credits, sharded the same way
 
-Personal lists live in D1 while the web app is in use; `pull` writes them back
-to my/*.csv so that git keeps their history.
+Personal lists and the reading queue live in D1 while the web app is in use;
+`pull` writes them back to my/*.csv and my/books.csv so that git keeps their
+history.
 """
 
 import csv
@@ -167,11 +168,55 @@ def _sql_str(v) -> str:
     return "NULL" if v is None or v == "" else "'" + str(v).replace("'", "''") + "'"
 
 
+BOOKS_FILE = personal.MY / "books.csv"
+BOOK_FIELDS = ["list", "title", "author", "year", "original_title", "tags", "note", "added", "ol_work", "cover_id"]
+
+
+def _count(table: str, remote: bool) -> int:
+    out = json.loads(_wrangler(["--json", "--command", f"SELECT count(*) AS n FROM {table}"], remote))
+    return out[0]["results"][0]["n"]
+
+
 def seed(remote: bool, force: bool = False) -> None:
-    """Upload my/*.csv to D1. Refuses to overwrite non-empty D1 lists unless forced."""
-    out = json.loads(_wrangler(["--json", "--command", "SELECT count(*) AS n FROM my_entry"], remote))
-    if out[0]["results"][0]["n"] and not force:
-        raise SystemExit("D1 already has personal entries; run `filmtr web pull` first, or pass --force")
+    """Upload my/*.csv to D1. Each part (film lists, books) is uploaded only
+    if it is empty in D1, unless forced: D1 holds the live copy."""
+    sql = []
+    if force or not _count("my_entry", remote):
+        sql += _film_lists_sql()
+    else:
+        log("D1 already has film lists, skipped (run `filmtr web pull` first, or pass --force)")
+    if force or not _count("my_book", remote):
+        sql += _books_sql()
+    else:
+        log("D1 already has books, skipped (run `filmtr web pull` first, or pass --force)")
+    if not sql:
+        return
+    path = paths.DATA / "seed-personal.sql"
+    path.write_text("\n".join(sql), encoding="utf-8")
+    _wrangler(["--file", str(path)], remote)
+    path.unlink()
+    log(f"seeded {'remote' if remote else 'local'} D1 from my/")
+
+
+def _books_sql() -> list[str]:
+    sql = ["DELETE FROM my_book;"]
+    if not BOOKS_FILE.exists():
+        return sql
+    with BOOKS_FILE.open(encoding="utf-8") as f:
+        for pos, r in enumerate(csv.DictReader(f)):
+            tags = [t.strip() for t in (r["tags"] or "").split(";") if t.strip()]
+            added = r["added"] or personal.today()
+            sql.append(
+                "INSERT INTO my_book (list_id, title, author, year, original_title, ol_work, cover_id, pos, tags, "
+                f"note, added_at, updated_at) VALUES ({_sql_str(r['list'] or 'to-read')}, {_sql_str(r['title'])}, "
+                f"{_sql_str(r['author'])}, {r['year'] or 'NULL'}, {_sql_str(r['original_title'])}, "
+                f"{_sql_str(r['ol_work'])}, {r['cover_id'] or 'NULL'}, {pos}, "
+                f"{_sql_str(json.dumps(tags, ensure_ascii=False))}, {_sql_str(r['note'])}, {_sql_str(added)}, "
+                f"{_sql_str(added)});")
+    return sql
+
+
+def _film_lists_sql() -> list[str]:
     db = sqlite3.connect(paths.CATALOG_DB)
     sql = ["DELETE FROM my_entry;", "DELETE FROM my_list;"]
     for n, pl in enumerate(personal.load_all()):
@@ -186,11 +231,7 @@ def seed(remote: bool, force: bool = False) -> None:
                 f"{_sql_str(json.dumps(e.tags, ensure_ascii=False))}, {_sql_str(e.note)}, "
                 f"{_sql_str(e.added)}, {_sql_str(e.added)}, {_sql_str(row[0])}, {row[1] or 'NULL'}, "
                 f"{_sql_str(row[2])});")
-    path = paths.DATA / "seed-personal.sql"
-    path.write_text("\n".join(sql), encoding="utf-8")
-    _wrangler(["--file", str(path)], remote)
-    path.unlink()
-    log(f"seeded {'remote' if remote else 'local'} D1 from my/")
+    return sql
 
 
 def pull(remote: bool) -> None:
@@ -215,3 +256,14 @@ def pull(remote: bool) -> None:
                                                  (r["added_at"] or "")[:10]))
         pl.save()
     log(f"pulled {len(rows)} entries in {len(lists)} lists into my/")
+
+    books = json.loads(_wrangler(["--json", "--command",
+                                  "SELECT * FROM my_book ORDER BY list_id DESC, pos"], remote))[0]["results"]
+    with BOOKS_FILE.open("w", encoding="utf-8", newline="") as f:
+        w = csv.writer(f, lineterminator="\n")
+        w.writerow(BOOK_FIELDS)
+        for b in books:
+            w.writerow([b["list_id"], b["title"], b["author"] or "", b["year"] or "", b["original_title"] or "",
+                        "; ".join(json.loads(b["tags"] or "[]")), b["note"] or "", (b["added_at"] or "")[:10],
+                        b["ol_work"] or "", b["cover_id"] or ""])
+    log(f"pulled {len(books)} books into {BOOKS_FILE.relative_to(paths.ROOT)}")

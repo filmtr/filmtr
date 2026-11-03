@@ -35,6 +35,7 @@ uv run filmtr show watchlist --tag "с детьми"
 
 - **Каталог** — статические JSON-файлы, которые собирает `filmtr web export` в `web/public/data/` (в git не попадают: это производные данные IMDb).
 - **Личные списки** — в D1, их правит Worker (`/api/my`). Постеры берутся с CDN TMDB.
+- **Книги** — очередь чтения (`/books`, `/api/books`) тоже в D1. Каталога книг нет: название, автор и год хранятся в самой записи, а обложки и ссылки берутся из [Open Library](https://openlibrary.org/).
 - **Доступ** — только через Cloudflare Access. Worker проверяет токен Access на каждом запросе, включая статические файлы. Пока Access не настроен, сайт отдаёт 403 на всё.
 
 ### Локально
@@ -43,7 +44,7 @@ uv run filmtr show watchlist --tag "с детьми"
 uv run filmtr web export                    # каталог в web/public/data
 cd web && npm install
 npm run db:migrate:local                    # таблицы личных списков в локальной D1
-cd .. && uv run filmtr web seed && cd web   # my/*.csv -> локальная D1
+cd .. && uv run filmtr web seed && cd web   # my/*.csv и my/books.csv -> локальная D1
 printf 'DEV_NO_AUTH=1\nTMDB_TOKEN=%s\n' "$(cat ~/.tmdb-api-read-access-token)" > .dev.vars
 npm run dev                                 # http://localhost:5173
 ```
@@ -67,7 +68,7 @@ npm run deploy                              # https://filmtr.<аккаунт>.wo
 Личные списки правятся в вебе, а в git сохраняются так:
 
 ```sh
-uv run filmtr web pull --remote   # D1 -> my/*.csv, затем закоммитить
+uv run filmtr web pull --remote   # D1 -> my/*.csv и my/books.csv, затем закоммитить
 uv run filmtr build               # фильмы, добавленные из веба, попадают в каталог с полными данными
 uv run filmtr web export && (cd web && npm run deploy)
 ```

@@ -1,7 +1,8 @@
 import { render } from "preact";
 import { LocationProvider, Route, Router } from "preact-iso";
 import { Header, Toasts } from "./components";
-import { loadCatalog, loadMy } from "./data";
+import { loadBooks, loadCatalog, loadMy } from "./data";
+import { BooksPage } from "./pages/books";
 import { CatalogPage } from "./pages/catalog";
 import { FilmPage } from "./pages/film";
 import { ListsPage } from "./pages/lists";
@@ -10,6 +11,7 @@ import { SearchPage } from "./pages/search";
 import "./style.css";
 
 loadMy();
+loadBooks();
 loadCatalog();
 
 function NotFound() {
@@ -30,11 +32,12 @@ function App() {
         <Route path="/person/:id" component={PersonPage} />
         <Route path="/catalog" component={CatalogPage} />
         <Route path="/search" component={SearchPage} />
+        <Route path="/books" component={BooksPage} />
         <Route default component={NotFound} />
       </Router>
       <footer class="foot">
-        Данные: IMDb (для личного использования), Wikidata, TMDB. This product uses the TMDB API but is not
-        endorsed or certified by TMDB.
+        Данные: IMDb (для личного использования), Wikidata, TMDB, Open Library. This product uses the TMDB API
+        but is not endorsed or certified by TMDB.
       </footer>
       <Toasts />
     </LocationProvider>

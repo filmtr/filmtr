@@ -31,6 +31,9 @@ export function Header() {
         <a href="/catalog" class={path === "/catalog" ? "on" : ""}>
           Каталог
         </a>
+        <a href="/books" class={path === "/books" ? "on" : ""}>
+          Книги
+        </a>
       </nav>
       <form
         class="search"
@@ -171,14 +174,19 @@ function MyListControl(props: { listId: string; title: string; filmId: string; s
   );
 }
 
-function TagEditor(props: { tags: string[]; onChange: (tags: string[]) => void }) {
+export function TagEditor(props: {
+  tags: string[];
+  onChange: (tags: string[]) => void;
+  suggestions?: string[];
+}) {
   const draft = useSignal("");
   const add = (t: string) => {
     const tag = t.trim().toLowerCase();
     if (tag && !props.tags.includes(tag)) props.onChange([...props.tags, tag]);
     draft.value = "";
   };
-  const suggestions = [...new Set([...allTags.value, ...SUGGESTED_TAGS])].filter((t) => !props.tags.includes(t));
+  const pool = props.suggestions ?? [...allTags.value, ...SUGGESTED_TAGS];
+  const suggestions = [...new Set(pool)].filter((t) => !props.tags.includes(t));
   return (
     <div class="tag-editor">
       <div class="tag-row">
@@ -211,7 +219,7 @@ function TagEditor(props: { tags: string[]; onChange: (tags: string[]) => void }
   );
 }
 
-function NoteEditor(props: { note: string | null; onSave: (note: string) => void }) {
+export function NoteEditor(props: { note: string | null; onSave: (note: string) => void; placeholder?: string }) {
   const ref = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
     if (ref.current && document.activeElement !== ref.current) ref.current.value = props.note ?? "";
@@ -221,7 +229,7 @@ function NoteEditor(props: { note: string | null; onSave: (note: string) => void
       ref={ref}
       class="note"
       rows={2}
-      placeholder="Заметка: с кем смотреть, почему хочется, что запомнилось"
+      placeholder={props.placeholder ?? "Заметка: с кем смотреть, почему хочется, что запомнилось"}
       aria-label="Заметка"
       onBlur={(ev) => {
         const v = ev.currentTarget.value.trim();

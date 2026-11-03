@@ -217,6 +217,91 @@ function stripUndefined<T extends object>(o: T): Partial<T> {
   return Object.fromEntries(Object.entries(o).filter(([k, v]) => v !== undefined && k !== "position")) as Partial<T>;
 }
 
+// --- Books (D1 via /api/books) -----------------------------------------------
+
+export type Book = {
+  id: number;
+  list_id: string;
+  title: string;
+  author: string | null;
+  year: number | null;
+  original_title: string | null;
+  ol_work: string | null;
+  cover_id: number | null;
+  pos: number;
+  tags: string[];
+  note: string | null;
+  added_at: string;
+  updated_at: string;
+};
+
+export type BookFields = Partial<
+  Pick<Book, "list_id" | "title" | "author" | "year" | "original_title" | "ol_work" | "cover_id" | "tags" | "note">
+> & { position?: "top" | "bottom" };
+
+export const books = signal<Book[] | null>(null);
+
+export async function loadBooks(): Promise<void> {
+  try {
+    const r = await fetch("/api/books");
+    if (!r.ok) throw new Error(await errorText(r));
+    books.value = ((await r.json()) as { books: Book[] }).books;
+  } catch (e) {
+    books.value = [];
+    toast(`Книги не загрузились: ${e instanceof Error ? e.message : e}`);
+  }
+}
+
+export async function addBook(fields: BookFields): Promise<Book | null> {
+  try {
+    const r = await fetch("/api/books", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(fields),
+    });
+    if (!r.ok) throw new Error(await errorText(r));
+    const book = (await r.json()) as Book;
+    books.value = [...(books.value ?? []), book];
+    return book;
+  } catch (e) {
+    toast(`Не добавилось: ${e instanceof Error ? e.message : e}`);
+    return null;
+  }
+}
+
+export async function saveBook(id: number, patch: BookFields): Promise<void> {
+  const before = books.value ?? [];
+  const { position, ...fields } = patch;
+  books.value = before.map((b) =>
+    b.id === id ? { ...b, ...fields, ...(position === "top" ? { pos: Number.MIN_SAFE_INTEGER } : {}) } : b,
+  );
+  try {
+    const r = await fetch(`/api/books/${id}`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(patch),
+    });
+    if (!r.ok) throw new Error(await errorText(r));
+    const saved = (await r.json()) as Book;
+    books.value = (books.value ?? []).map((b) => (b.id === id ? saved : b));
+  } catch (e) {
+    books.value = before;
+    toast(`Не сохранилось: ${e instanceof Error ? e.message : e}`);
+  }
+}
+
+export async function removeBook(id: number): Promise<void> {
+  const before = books.value ?? [];
+  books.value = before.filter((b) => b.id !== id);
+  try {
+    const r = await fetch(`/api/books/${id}`, { method: "DELETE" });
+    if (!r.ok) throw new Error(await errorText(r));
+  } catch (e) {
+    books.value = before;
+    toast(`Не удалилось: ${e instanceof Error ? e.message : e}`);
+  }
+}
+
 // --- Toasts ---------------------------------------------------------------
 
 export const toasts = signal<{ id: number; text: string; undo?: () => void }[]>([]);
